@@ -24,7 +24,7 @@ fi
 
         echo "Doing a git fetch"
         git fetch
-        remotehead=$( cat .git/refs/remotes/origin/master )
+        remotehead=$( cat .git/refs/remotes/origin/$DOMAIN )
         localhead=$( git rev-parse HEAD)
         echo "Remoted origin master head commit id " $remotehead
         echo "local branch head commit id " $localhead
