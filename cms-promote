@@ -1,0 +1,59 @@
+#!/bin/bash
+
+[ $# -lt 2 ] && echo "Usage `basename $0` <env> <package> [-nodeploy/-nobuild]" && exit 1
+
+DOMAIN=$1
+PACKAGE=$2
+shift 2
+case $DOMAIN in 
+    nm|eng|sb|vl|stage|mp|mp2) 
+	TARGET=${DOMAIN}
+    ;; 
+    *) 
+	echo "Target must be nm/eng/sb/vl/stage/mp/mp2" && exit 2
+    ;; 
+esac
+
+branch=$(git rev-parse --abbrev-ref HEAD)
+echo "Current branch is $branch"
+
+if [ $branch != $DOMAIN ]; then
+	echo "Promotion to '$DOMAIN' can only be done from '$DOMAIN' branch, merge current branch ($branch) to '$DOMAIN' and promote from '$DOMAIN' branch"
+	exit 1
+fi
+
+        echo "Doing a git fetch"
+        git fetch
+        remotehead=$( cat .git/refs/remotes/origin/master )
+        localhead=$( git rev-parse HEAD)
+        echo "Remoted origin master head commit id " $remotehead
+        echo "local branch head commit id " $localhead
+
+        if [ $remotehead == $localhead ] 
+            then
+                echo "Good to go"
+            else
+                echo "You have stale or unpushed code. Can't deploy" && exit 2
+        fi
+ 
+
+case $PACKAGE in
+    backend|service|search|sss-service|scf-backend|consoleservice|matcher-service|category-service)
+	TAG=release/fk-cms-${PACKAGE}/${DOMAIN}-$(date +%Y%m%d-%H%M)${1}
+    ;;
+    *)
+ 	echo "Valid package options for cms build are backend/search/service/sss-service/scf-backend/consoleservice/matcher-service" && exit 3
+    ;;
+esac
+
+./ci-build
+if [ $? -ne 0 ]
+then
+        echo "CI Build Failed, Exiting"
+        exit 1
+fi
+
+
+echo $TAG
+git tag -m "Promoting to $DOMAIN." $TAG
+git push --tags
